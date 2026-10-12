@@ -8,7 +8,6 @@ import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -39,7 +38,6 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
@@ -48,7 +46,6 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -136,8 +133,8 @@ fun DeviceActivationScreen(
     // High security pulsing shield & rotating aura animations
     val infiniteTransition = rememberInfiniteTransition(label = "shield_pulse")
     val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
+        initialValue = 0.96f,
+        targetValue = 1.04f,
         animationSpec = infiniteRepeatable(
             animation = tween(1800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -296,7 +293,7 @@ fun DeviceActivationScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        // Decorative ambient glow spots in background
+        // Decorative ambient glow spots
         Box(
             modifier = Modifier
                 .size(340.dp)
@@ -330,7 +327,7 @@ fun DeviceActivationScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // 1. Cyber Security Shield Emblem with glowing multi-layer ring & rotating aura
             Box(
@@ -339,7 +336,7 @@ fun DeviceActivationScreen(
                     .size(116.dp)
                     .scale(pulseScale)
             ) {
-                // Outer rotating gradient dashed aura
+                // Outer rotating gradient border
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -395,93 +392,33 @@ fun DeviceActivationScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Security Badge Pill with live radar dot
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = Color(0xFF0F223D),
-                border = BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.4f)),
-                shadowElevation = 4.dp,
-                modifier = Modifier.padding(bottom = 12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF10B981))
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "সুরক্ষিত ডিভাইস প্রোটেকশন সিস্টেম",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF7DD3FC),
-                        letterSpacing = 0.3.sp
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(20.dp))
 
             // 2. Title & Subtitle
             Text(
                 text = "ডিভাইস সুরক্ষা ও এক্সেস কন্ট্রোল",
-                fontSize = 23.sp,
-                fontWeight = FontWeight.ExtraBold,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
                 color = Color.White,
-                textAlign = TextAlign.Center,
-                letterSpacing = 0.4.sp
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "এই অ্যাপটি সুরক্ষিত এবং অনুমোদিত ডিভাইসের জন্য সংরক্ষিত। অ্যাপ ব্যবহার করতে অ্যাডমিনের দেওয়া সিক্রেট এক্সেস কোডটি প্রদান করুন।",
+                text = "এই অ্যাপটি অনুমোদিত ডিভাইসের জন্য সংরক্ষিত। অ্যাপে এক্সেস পেতে আপনার ডিভাইস আইডি অ্যাডমিনকে পাঠিয়ে এক্সেস কোড সংগ্রহ করুন।",
                 fontSize = 13.5.sp,
                 color = Color(0xFF94A3B8),
                 textAlign = TextAlign.Center,
                 lineHeight = 20.sp,
-                modifier = Modifier.padding(horizontal = 10.dp)
+                modifier = Modifier.padding(horizontal = 8.dp)
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // 2.5 Quick 3-Step Guide Cards
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                StepGuideItem(
-                    number = "১",
-                    title = "আইডি কপি",
-                    subtitle = "নিচের আইডিটি কপি করুন",
-                    modifier = Modifier.weight(1f)
-                )
-                StepGuideItem(
-                    number = "২",
-                    title = "কোড সংগ্রহ",
-                    subtitle = "অ্যাডমিনকে পাঠিয়ে কোড নিন",
-                    modifier = Modifier.weight(1f)
-                )
-                StepGuideItem(
-                    number = "৩",
-                    title = "এক্সেস সক্রিয়",
-                    subtitle = "কোড দিয়ে আনলক করুন",
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
             // 3. Unique Hardware Device ID Card
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(18.dp),
                 color = Color(0xFF0B172B),
                 border = BorderStroke(1.2.dp, Color(0xFF1E355B)),
                 shadowElevation = 8.dp,
@@ -494,37 +431,21 @@ fun DeviceActivationScreen(
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Filled.Fingerprint,
-                                contentDescription = null,
-                                tint = Color(0xFF38BDF8),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "আপনার অনন্য ডিভাইস আইডি",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFE2E8F0)
-                            )
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF132A4C),
-                            border = BorderStroke(0.8.dp, Color(0xFF38BDF8).copy(alpha = 0.4f))
-                        ) {
-                            Text(
-                                text = "যাচাইকৃত",
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF38BDF8),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Filled.Lock,
+                            contentDescription = null,
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "আপনার অনন্য ডিভাইস আইডি",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFE2E8F0)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
@@ -630,7 +551,7 @@ fun DeviceActivationScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "কোড পেতে উপরের আইডিটি কপি বা শেয়ার করে অ্যাডমিনকে পাঠান",
+                        text = "কোড সংগ্রহ করতে উপরের আইডিটি কপি করে অ্যাডমিনকে পাঠান",
                         fontSize = 11.5.sp,
                         color = Color(0xFF64748B),
                         textAlign = TextAlign.Center
@@ -640,14 +561,14 @@ fun DeviceActivationScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 3.5 Banned Device Alert Card (Shown if banned by admin)
+            // 3.5 Banned Device Alert Card (Shown only if banned by admin)
             AnimatedVisibility(
                 visible = isDeviceBanned,
                 enter = fadeIn() + scaleIn(),
                 exit = fadeOut()
             ) {
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(18.dp),
                     color = Color(0xFF260A0D),
                     border = BorderStroke(1.5.dp, Color(0xFFEF4444)),
                     shadowElevation = 10.dp,
@@ -725,7 +646,7 @@ fun DeviceActivationScreen(
 
             // 4. Access Code Input Card
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(18.dp),
                 color = Color(0xFF0B172B),
                 border = BorderStroke(1.2.dp, if (isDeviceBanned) Color(0xFF7F1D1D) else Color(0xFF1E355B)),
                 shadowElevation = 8.dp,
@@ -739,21 +660,12 @@ fun DeviceActivationScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Filled.VpnKey,
-                                contentDescription = null,
-                                tint = if (isDeviceBanned) Color(0xFFEF4444) else Color(0xFF38BDF8),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (isDeviceBanned) "এক্সেস কোড (ডিভাইস ব্যান থাকায় নিষ্ক্রিয়)" else "এক্সেস কোড লিখুন",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isDeviceBanned) Color(0xFFF87171) else Color(0xFFE2E8F0)
-                            )
-                        }
+                        Text(
+                            text = if (isDeviceBanned) "এক্সেস কোড (ডিভাইস ব্যান থাকায় নিষ্ক্রিয়)" else "এক্সেস কোড লিখুন",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isDeviceBanned) Color(0xFFF87171) else Color(0xFFE2E8F0)
+                        )
 
                         // Quick Paste button if clipboard has content
                         if (!isDeviceBanned) {
@@ -801,9 +713,9 @@ fun DeviceActivationScreen(
                             .testTag("activation_code_input"),
                         placeholder = {
                             Text(
-                                if (isDeviceBanned) "ডিভাইস ব্যান থাকায় কোনো কোড কাজ করবে না" else "যেমন: VIP-STUDENT-01",
+                                if (isDeviceBanned) "ডিভাইস ব্যান থাকায় কোনো কোড কাজ করবে না" else "এক্সেস কোড লিখুন",
                                 color = if (isDeviceBanned) Color(0xFFEF4444) else Color(0xFF64748B),
-                                fontSize = 14.5.sp
+                                fontSize = 14.sp
                             )
                         },
                         leadingIcon = {
@@ -988,125 +900,70 @@ fun DeviceActivationScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 5. Contact Admin & Support Links Section
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = Color(0xFF0B172B),
-                border = BorderStroke(1.2.dp, Color(0xFF1E355B)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(18.dp)
+            // 5. Contact Admin & Support Links Section (Dynamic from Database)
+            if (supportLinks.isNotEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color(0xFF0B172B),
+                    border = BorderStroke(1.2.dp, Color(0xFF1E355B)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(18.dp)
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color(0xFF172B4B),
-                            modifier = Modifier.size(36.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Send,
-                                    contentDescription = null,
-                                    tint = Color(0xFF38BDF8),
-                                    modifier = Modifier.size(18.dp)
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFF172B4B),
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Send,
+                                        contentDescription = null,
+                                        tint = Color(0xFF38BDF8),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+                                Text(
+                                    text = "কোড পেতে অ্যাডমিনের সাথে যোগাযোগ",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFE2E8F0)
+                                )
+                                Text(
+                                    text = "আপনার ডিভাইস আইডি পাঠিয়ে কোড সংগ্রহ করুন",
+                                    fontSize = 11.5.sp,
+                                    color = Color(0xFF94A3B8)
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                        Column {
-                            Text(
-                                text = "কোড পেতে অ্যাডমিনের সাথে যোগাযোগ",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFE2E8F0)
-                            )
-                            Text(
-                                text = "আপনার ডিভাইস আইডি পাঠিয়ে যেকোনো মাধ্যমে কোড সংগ্রহ করুন",
-                                fontSize = 11.5.sp,
-                                color = Color(0xFF94A3B8)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // List of dynamic contact links configured from Admin app
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        supportLinks.forEach { link ->
-                            SupportLinkCard(
-                                link = link,
-                                onClick = { handleOpenLink(link) }
-                            )
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            supportLinks.forEach { link ->
+                                SupportLinkCard(
+                                    link = link,
+                                    onClick = { handleOpenLink(link) }
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // Extra space at bottom to prevent navigation bar clipping
             Spacer(modifier = Modifier.height(36.dp))
-        }
-    }
-}
-
-/**
- * Quick 3-Step Guide Item
- */
-@Composable
-private fun StepGuideItem(
-    number: String,
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = Color(0xFF091424),
-        border = BorderStroke(1.dp, Color(0xFF192E4E)),
-        modifier = modifier
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = Color(0xFF172B4B),
-                modifier = Modifier.size(24.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = number,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF38BDF8)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = title,
-                fontSize = 11.5.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFCBD5E1),
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                fontSize = 9.5.sp,
-                color = Color(0xFF64748B),
-                textAlign = TextAlign.Center,
-                lineHeight = 12.sp,
-                maxLines = 2
-            )
         }
     }
 }
@@ -1155,7 +1012,6 @@ private fun SupportLinkCard(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Circular Brand Icon Badge
                 Surface(
                     shape = CircleShape,
                     color = brandColor.copy(alpha = 0.18f),
@@ -1198,7 +1054,6 @@ private fun SupportLinkCard(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Action arrow icon
             Surface(
                 shape = CircleShape,
                 color = Color(0xFF172B4B).copy(alpha = 0.7f),

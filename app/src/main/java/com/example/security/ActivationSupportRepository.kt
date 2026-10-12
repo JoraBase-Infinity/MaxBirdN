@@ -31,28 +31,7 @@ object ActivationSupportRepository {
         .readTimeout(12, TimeUnit.SECONDS)
         .build()
 
-    val fallbackLinks: List<ActivationSupportLink> = listOf(
-        ActivationSupportLink(
-            id = "default_telegram",
-            title = "Telegram সাপোর্ট",
-            subtitle = "@fahim017740 এ মেসেজ দিন",
-            iconType = "telegram",
-            url = "https://t.me/fahim017740",
-            colorHex = "#229ED9",
-            isActive = true,
-            priority = 10
-        ),
-        ActivationSupportLink(
-            id = "default_whatsapp",
-            title = "WhatsApp হেল্পলাইন",
-            subtitle = "সরাসরি WhatsApp এ যোগাযোগ করুন",
-            iconType = "whatsapp",
-            url = "https://wa.me/8801774092040",
-            colorHex = "#25D366",
-            isActive = true,
-            priority = 9
-        )
-    )
+    val fallbackLinks: List<ActivationSupportLink> = emptyList()
 
     private fun getPrefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -61,7 +40,7 @@ object ActivationSupportRepository {
         return try {
             val raw = getPrefs(context).getString(KEY_CACHED_LINKS, null)
             if (!raw.isNullOrBlank()) {
-                parseJsonArray(raw)
+                parseJsonArray(raw).filter { it.id != "default_telegram" && it.id != "default_whatsapp" }
             } else {
                 fallbackLinks
             }
