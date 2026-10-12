@@ -1,4 +1,5 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import java.security.KeyStore
 import java.util.Base64
 import java.util.Properties
 
@@ -93,21 +94,49 @@ android {
       val keyPasswordEnv = System.getenv("KEY_PASSWORD")
       val keyAliasEnv = System.getenv("KEY_ALIAS")
       
-      if (file(keystorePath).exists()) {
-        storeFile = file(keystorePath)
-        storePassword = storePasswordEnv?.takeIf { it.isNotBlank() } ?: "android"
-        keyAlias = keyAliasEnv?.takeIf { it.isNotBlank() } ?: "upload"
-        keyPassword = keyPasswordEnv?.takeIf { it.isNotBlank() } ?: storePasswordEnv ?: "android"
-        enableV1Signing = true
-        enableV2Signing = true
-      } else {
-        // Fallback to debug keystore if release keys are not provided
+      val customKsFile = file(keystorePath)
+      var useReleaseKey = false
+
+      if (customKsFile.exists() && customKsFile.length() > 0L) {
+        val testStorePass = storePasswordEnv?.takeIf { it.isNotBlank() } ?: "android"
+        val testAlias = keyAliasEnv?.takeIf { it.isNotBlank() } ?: "upload"
+        val testKeyPass = keyPasswordEnv?.takeIf { it.isNotBlank() } ?: testStorePass
+
+        try {
+          val ksType = if (customKsFile.name.endsWith(".jks", ignoreCase = true)) "JKS" else "PKCS12"
+          val ks = KeyStore.getInstance(ksType)
+          val input = customKsFile.inputStream()
+          try {
+            ks.load(input, testStorePass.toCharArray())
+          } finally {
+            input.close()
+          }
+          if (ks.containsAlias(testAlias)) {
+            storeFile = customKsFile
+            storePassword = testStorePass
+            keyAlias = testAlias
+            keyPassword = testKeyPass
+            enableV1Signing = true
+            enableV2Signing = true
+            useReleaseKey = true
+            println("✅ Verified and loaded custom release keystore ($testAlias).")
+          } else {
+            println("Warning: Keystore does not contain alias '$testAlias'. Falling back to debug.keystore.")
+          }
+        } catch (e: Exception) {
+          println("Warning: Custom release keystore password/alias check failed: ${e.message}. Falling back to debug.keystore.")
+        }
+      }
+
+      if (!useReleaseKey) {
+        // Fallback to debug keystore so Release APK build never fails
         storeFile = file("${rootDir}/debug.keystore")
         storePassword = "android"
         keyAlias = "androiddebugkey"
         keyPassword = "android"
         enableV1Signing = true
         enableV2Signing = true
+        println("ℹ️ Release APK will be signed with debug keystore fallback.")
       }
     }
     create("debugConfig") {
@@ -159,7 +188,7 @@ secrets {
   ignoreList.add("SUPABASE_ANON_KEY")
 }
 
-googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
+googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.ERROR }
 
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
@@ -196,7 +225,7 @@ dependencies {
   implementation(libs.coil.compose)
   implementation(libs.coil.svg)
   implementation(libs.converter.moshi)
-  // implementation(libs.firebase.ai)
+  implementation(libs.firebase.ai)
   implementation(libs.firebase.messaging)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
@@ -207,8 +236,8 @@ dependencies {
   // implementation(libs.androidx.credentials)
   // implementation(libs.androidx.credentials.play.services)
   // implementation(libs.googleid)
-  // implementation(libs.firebase.appcheck.recaptcha)
-  // implementation(libs.firebase.appcheck.debug)
+  implementation(libs.firebase.appcheck.recaptcha)
+  implementation(libs.firebase.appcheck.debug)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)
