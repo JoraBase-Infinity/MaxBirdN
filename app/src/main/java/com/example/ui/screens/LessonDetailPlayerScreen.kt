@@ -203,7 +203,7 @@ fun LessonDetailPlayerScreen(
             lesson?.isUpcoming == false &&
             lesson?.hasRecording == false &&
             (lesson?.classStartMs ?: Long.MAX_VALUE) <= System.currentTimeMillis() &&
-            ((lesson?.classEndMs ?: Long.MAX_VALUE) + 45 * 60 * 1000L) >= System.currentTimeMillis()
+            (lesson?.classEndMs ?: Long.MAX_VALUE) > System.currentTimeMillis()
         )
     }
 
@@ -222,8 +222,7 @@ fun LessonDetailPlayerScreen(
         if (isLiveOngoing || isUpcomingLesson) return@remember false
         if (activeStreamUrl.isNotBlank() || candidateStreams.isNotEmpty()) return@remember false
         lesson?.isLiveClass == true && !lesson.hasRecording && (
-            ((lesson.classEndMs != Long.MAX_VALUE) && System.currentTimeMillis() > (lesson.classEndMs + 45 * 60 * 1000L)) ||
-            lesson.live_class?.is_on_going == false
+            (lesson.classEndMs != Long.MAX_VALUE && System.currentTimeMillis() >= lesson.classEndMs)
         )
     }
 
