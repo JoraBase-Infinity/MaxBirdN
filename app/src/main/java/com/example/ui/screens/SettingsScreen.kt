@@ -1,16 +1,11 @@
 package com.example.ui.screens
 
-import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,12 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,23 +30,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
 import coil.compose.SubcomposeAsyncImage
-import coil.request.ImageRequest
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Palette
-import com.example.MainActivity
+import com.example.BuildConfig
 import com.example.auth.SessionManager
 import com.example.ui.dialogs.FcmLiveTerminalDialog
-import com.example.utils.AvatarUtils
+import com.example.ui.dialogs.UpdateDialog
 import com.example.update.AppUpdateInfo
 import com.example.update.AppUpdateRepository
-import com.example.ui.dialogs.UpdateDialog
-import com.example.BuildConfig
-import androidx.compose.runtime.rememberCoroutineScope
+import com.example.utils.AppCacheManager
+import com.example.utils.AvatarUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -78,13 +63,23 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     val currentThemeMode by sessionManager.themeModeFlow.collectAsState()
     val currentLeadTime by sessionManager.classNotificationLeadTimeFlow.collectAsState()
+
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var showClearCacheDialog by remember { mutableStateOf(false) }
+    var showTerminalDialog by remember { mutableStateOf(false) }
+    var manualUpdateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var isClearingCache by remember { mutableStateOf(false) }
+
     var formattedCacheSize by remember { mutableStateOf("0.0 MB") }
 
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        formattedCacheSize = com.example.utils.AppCacheManager.getFormattedCacheSize(context)
+    LaunchedEffect(Unit) {
+        formattedCacheSize = AppCacheManager.getFormattedCacheSize(context)
     }
 
     val profileUpdated by sessionManager.userProfileUpdateFlow.collectAsState()
@@ -104,6 +99,7 @@ fun SettingsScreen(
             else -> userClass.ifBlank { "একাদশ শ্রেণি" }
         }
     }
+
     val groupDisplay = remember(userGroup) {
         when (userGroup.lowercase()) {
             "humanities", "humanities_group", "hum" -> "মানবিক"
@@ -113,7 +109,13 @@ fun SettingsScreen(
         }
     }
 
-    var showTerminalDialog by remember { mutableStateOf(false) }
+    val themeLabel = remember(currentThemeMode) {
+        when (currentThemeMode) {
+            "light" -> "লাইট মোড"
+            "dark" -> "ডার্ক মোড"
+            else -> "সিস্টেম ডিফল্ট"
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -127,11 +129,20 @@ fun SettingsScreen(
                 },
                 actions = {
                     IconButton(onClick = { showTerminalDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Terminal,
-                            contentDescription = "FCM টার্মিনাল",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Terminal,
+                                    contentDescription = "FCM লাইভ টার্মিনাল",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -147,23 +158,23 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Profile Card Header
+            // 1. Ultra-Clean Hero Profile Card
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(22.dp))
                     .clickable { onNavigateToEditProfile() },
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(22.dp),
                 color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(
                     1.dp,
                     Brush.linearGradient(
                         listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
                         )
                     )
                 ),
@@ -175,27 +186,28 @@ fun SettingsScreen(
                         .background(
                             Brush.linearGradient(
                                 listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.07f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
                                     Color.Transparent
                                 )
                             )
                         )
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    // Profile Avatar with Ring
                     Box(
                         modifier = Modifier
-                            .size(62.dp)
+                            .size(60.dp)
                             .shadow(
-                                elevation = 10.dp,
+                                elevation = 8.dp,
                                 shape = CircleShape,
                                 spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
                             )
                             .clip(CircleShape)
                             .background(
                                 Brush.linearGradient(
-                                    colors = listOf(
+                                    listOf(
                                         MaterialTheme.colorScheme.primary,
                                         MaterialTheme.colorScheme.secondary
                                     )
@@ -239,7 +251,7 @@ fun SettingsScreen(
                                         Text(
                                             text = fallbackInitial,
                                             color = Color.White,
-                                            fontSize = 24.sp,
+                                            fontSize = 22.sp,
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
@@ -261,7 +273,7 @@ fun SettingsScreen(
                                         Text(
                                             text = fallbackInitial,
                                             color = Color.White,
-                                            fontSize = 24.sp,
+                                            fontSize = 22.sp,
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
@@ -273,216 +285,208 @@ fun SettingsScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = userName,
-                            fontSize = 17.sp,
+                            fontSize = 17.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = listOf(classDisplay, groupDisplay).filter { it.isNotBlank() }.joinToString(" • "),
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                            ) {
+                                Text(
+                                    text = classDisplay,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                            if (groupDisplay.isNotBlank()) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+                                ) {
+                                    Text(
+                                        text = groupDisplay,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
 
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                        contentDescription = "Edit Profile",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.size(16.dp)
-                    )
+                    // Action pill
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                contentDescription = "Edit Profile",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
+                    }
                 }
             }
 
-            // Academic Settings Group
-            SettingsSection(title = "একাডেমিক সেটিংস") {
-                // 1. প্রোফাইল এডিট (Edit Profile - above Change Syllabus)
-                SettingsRowItem(
+            // 2. Academic Section (Clean & Punchy)
+            SettingsGroupCard(title = "একাডেমিক প্রোফাইল") {
+                CleanSettingsRow(
                     icon = Icons.Default.Edit,
-                    iconTint = Color(0xFF7C3AED),
-                    iconBg = Color(0xFFEDE9FE),
+                    iconTint = Color(0xFF8B5CF6),
+                    iconBg = Color(0xFF8B5CF6).copy(alpha = 0.14f),
                     title = "প্রোফাইল এডিট",
-                    subtitle = "ব্যক্তিগত ও শিক্ষাপ্রতিষ্ঠানের তথ্য পরিবর্তন করো",
-                    badge = "এডিট",
+                    badgeText = "এডিট",
                     onClick = onNavigateToEditProfile
                 )
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                CleanDivider()
 
-                // 2. সিলেবাস পরিবর্তন (Change Syllabus)
-                SettingsRowItem(
+                CleanSettingsRow(
                     icon = Icons.Default.SwapCalls,
                     iconTint = MaterialTheme.colorScheme.primary,
-                    iconBg = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    title = "সিলেবাস পরিবর্তন",
-                    subtitle = listOf(classDisplay, groupDisplay, userBatch).filter { it.isNotBlank() }.joinToString(" • "),
-                    badge = "পরিবর্তন",
+                    iconBg = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    title = "সিলেবাস ও শ্রেণি",
+                    badgeText = classDisplay,
                     onClick = onNavigateToChangeSyllabus
                 )
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                CleanDivider()
 
-                // 3. প্রোফাইল বিবরণ
-                SettingsRowItem(
+                CleanSettingsRow(
                     icon = Icons.Default.Person,
                     iconTint = Color(0xFF0284C7),
-                    iconBg = Color(0xFFE0F2FE),
+                    iconBg = Color(0xFF0284C7).copy(alpha = 0.14f),
                     title = "প্রোফাইল বিবরণ",
-                    subtitle = "নাম, প্রতিষ্ঠান ও অ্যাকাউন্টের তথ্য",
                     onClick = onNavigateToProfile
                 )
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                CleanDivider()
 
-                // 4. কোর্সে ভর্তি (Course Enrollment / Admission Details)
-                SettingsRowItem(
+                CleanSettingsRow(
                     icon = Icons.Default.CardMembership,
-                    iconTint = Color(0xFF16A34A),
-                    iconBg = Color(0xFFDCFCE7),
-                    title = "কোর্সে ভর্তি",
-                    subtitle = "ভর্তি হওয়া কোর্স, কোয়ার্টার ও মেয়াদের বিবরণ",
-                    badge = "বিস্তারিত",
+                    iconTint = Color(0xFF10B981),
+                    iconBg = Color(0xFF10B981).copy(alpha = 0.14f),
+                    title = "কোর্সে ভর্তি ও সাবস্ক্রিপশন",
+                    badgeText = "সক্রিয়",
                     onClick = onNavigateToCourseEnrollment
                 )
+            }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
-                // 5. সংরক্ষিত আইটেম (Saved Items)
-                SettingsRowItem(
+            // 3. Learning & Resources Section
+            SettingsGroupCard(title = "লার্নিং ও রিসোর্স") {
+                CleanSettingsRow(
                     icon = Icons.Default.Bookmark,
                     iconTint = Color(0xFFF59E0B),
-                    iconBg = Color(0xFFFEF3C7),
-                    title = "সংরক্ষিত আইটেম",
-                    subtitle = "বুকমার্ক করা প্রশ্ন ও গুরুত্বপূর্ণ স্টাডি ম্যাটেরিয়াল",
-                    badge = "সংরক্ষিত",
+                    iconBg = Color(0xFFF59E0B).copy(alpha = 0.14f),
+                    title = "সংরক্ষিত প্রশ্ন ও নোটস",
                     onClick = onNavigateToSavedItems
                 )
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                CleanDivider()
 
-                // 6. অফলাইন ডাউনলোড (Offline Downloads)
-                SettingsRowItem(
+                CleanSettingsRow(
                     icon = Icons.Default.DownloadDone,
-                    iconTint = Color(0xFF10B981),
-                    iconBg = Color(0xFFD1FAE5),
+                    iconTint = Color(0xFF059669),
+                    iconBg = Color(0xFF059669).copy(alpha = 0.14f),
                     title = "অফলাইন ডাউনলোড",
-                    subtitle = "ইন্টারনেট ছাড়া সংরক্ষিত ভিডিও ও পিডিএফ লেকচার",
-                    badge = "অফলাইন",
                     onClick = onNavigateToDownloads
                 )
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                CleanDivider()
 
-                // 7. রিপোর্ট কার্ড ও লিডারবোর্ড (Report Card & Leaderboard)
-                SettingsRowItem(
+                CleanSettingsRow(
                     icon = Icons.Default.Assessment,
                     iconTint = Color(0xFF2563EB),
-                    iconBg = Color(0xFFEFF6FF),
+                    iconBg = Color(0xFF2563EB).copy(alpha = 0.14f),
                     title = "রিপোর্ট কার্ড ও লিডারবোর্ড",
-                    subtitle = "কোয়ার্টার পারফরম্যান্স ট্রেন্ড ও বিষয়ভিত্তিক মেধা তালিকা",
-                    badge = "নতুন",
+                    badgeText = "নতুন",
+                    badgeColor = Color(0xFF2563EB),
                     onClick = onNavigateToReportCard
                 )
             }
 
-            // App Preferences & Theme Section
-            SettingsSection(title = "অ্যাপ প্রেফারেন্স ও নোটিফিকেশন") {
-                // হেডার ও লাইভ ওয়ালপেপার
-                SettingsRowItem(
-                    icon = Icons.Default.Wallpaper,
+            // 4. App Preferences & Notification
+            SettingsGroupCard(title = "অ্যাপ প্রেফারেন্স") {
+                CleanSettingsRow(
+                    icon = Icons.Default.Palette,
                     iconTint = Color(0xFFEC4899),
-                    iconBg = Color(0xFFFCE7F3),
+                    iconBg = Color(0xFFEC4899).copy(alpha = 0.14f),
                     title = "হেডার ও লাইভ ওয়ালপেপার",
-                    subtitle = "হোম পেজের ব্যাকগ্রাউন্ড থিম ও নিজস্ব ওয়ালপেপার পরিবর্তন",
-                    badge = "থিম",
+                    badgeText = "কাস্টমাইজ",
                     onClick = onNavigateToHeaderWallpaper
                 )
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                CleanDivider()
 
-                SettingsRowItem(
+                CleanSettingsRow(
                     icon = Icons.Default.NotificationsActive,
-                    iconTint = Color(0xFFD97706),
-                    iconBg = Color(0xFFFEF3C7),
-                    title = "নোটিফিকেশন ও ক্লাস অ্যালার্ম",
-                    subtitle = "তারিখ অনুযায়ী সেট করা ক্লাস অ্যালার্ম ও $currentLeadTime মি. আগের রিমাইন্ডার",
-                    badge = "নোটিফিকেশন",
+                    iconTint = Color(0xFFF97316),
+                    iconBg = Color(0xFFF97316).copy(alpha = 0.14f),
+                    title = "ক্লাস অ্যালার্ম ও নোটিফিকেশন",
+                    badgeText = "${currentLeadTime} মি. আগে",
                     onClick = onNavigateToNotification
                 )
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                CleanDivider()
 
-                SettingsRowItem(
-                    icon = Icons.Default.Terminal,
-                    iconTint = Color(0xFF0284C7),
-                    iconBg = Color(0xFFE0F2FE),
-                    title = "FCM লাইভ টার্মিনাল (মনিটর)",
-                    subtitle = "ক্লাউড নোটিফিকেশন টপিক সাবস্ক্রিপশন ও লাইভ ইভেন্ট লগ",
-                    badge = "রিয়েলটাইম",
-                    onClick = { showTerminalDialog = true }
-                )
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
-                SettingsRowItem(
+                CleanSettingsRow(
                     icon = Icons.Default.DarkMode,
                     iconTint = Color(0xFF6366F1),
-                    iconBg = Color(0xFFEEF2FF),
-                    title = "অ্যাপ থিম (Dark & Light Mode)",
-                    subtitle = when (currentThemeMode) {
-                        "light" -> "লাইট মোড"
-                        "dark" -> "ডার্ক মোড"
-                        else -> "সিস্টেম ডিফল্ট (মোবাইল অনুযায়ী)"
-                    },
-                    badge = when (currentThemeMode) {
-                        "light" -> "Light"
-                        "dark" -> "Dark"
-                        else -> "System"
-                    },
+                    iconBg = Color(0xFF6366F1).copy(alpha = 0.14f),
+                    title = "অ্যাপ থিম",
+                    badgeText = themeLabel,
+                    badgeColor = Color(0xFF6366F1),
                     onClick = { showThemeDialog = true }
                 )
             }
 
-            // Storage & Cache Section
-            SettingsSection(title = "স্টোরেজ ও ক্যাশ মেমোরি") {
-                SettingsRowItem(
+            // 5. Storage & Maintenance Section
+            SettingsGroupCard(title = "স্টোরেজ ও রক্ষণাবেক্ষণ") {
+                CleanSettingsRow(
                     icon = Icons.Default.DeleteSweep,
                     iconTint = Color(0xFF0284C7),
-                    iconBg = Color(0xFFE0F2FE),
-                    title = "ক্যাশ মেমোরি পরিষ্কার করুন",
-                    subtitle = if (formattedCacheSize != "0.0 MB") {
-                        "$formattedCacheSize ক্যাশ জমা আছে • খালি করতে ট্যাপ করুন"
-                    } else {
-                        "ক্যাশ মেমোরি সম্পূর্ণ পরিষ্কার আছে (০.০ MB)"
-                    },
-                    badge = formattedCacheSize,
-                    onClick = {
-                        com.example.utils.AppCacheManager.clearAllAppCache(context)
-                        formattedCacheSize = "0.0 MB"
-                        Toast.makeText(context, "অ্যাপের সমস্ত ক্যাশ মেমোরি সম্পূর্ণ খালি করা হয়েছে!", Toast.LENGTH_SHORT).show()
-                    }
+                    iconBg = Color(0xFF0284C7).copy(alpha = 0.14f),
+                    title = "ক্যাশ মেমোরি খালি করুন",
+                    badgeText = formattedCacheSize,
+                    badgeColor = if (formattedCacheSize != "0.0 MB") Color(0xFF0284C7) else Color(0xFF10B981),
+                    onClick = { showClearCacheDialog = true }
                 )
-            }
 
-            // App Update Section
-            val scope = rememberCoroutineScope()
-            var manualUpdateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+                CleanDivider()
 
-            SettingsSection(title = "অ্যাপ আপডেট ও সংস্করণ") {
-                SettingsRowItem(
+                CleanSettingsRow(
                     icon = Icons.Default.SystemUpdate,
                     iconTint = Color(0xFF10B981),
-                    iconBg = Color(0xFFD1FAE5),
-                    title = "অ্যাপ আপডেট চেক করুন",
-                    subtitle = "সর্বশেষ সংস্করণে আছেন কিনা যাচাই করুন",
+                    iconBg = Color(0xFF10B981).copy(alpha = 0.14f),
+                    title = "অ্যাপ আপডেট যাচাই করুন",
+                    badgeText = if (isCheckingUpdate) "যাচাই হচ্ছে..." else "v6.0.5",
                     onClick = {
-                        scope.launch(Dispatchers.IO) {
-                            val info = AppUpdateRepository.fetchLatestUpdate()
-                            withContext(Dispatchers.Main) {
-                                if (info != null && info.versionCode > BuildConfig.VERSION_CODE) {
-                                    manualUpdateInfo = info
-                                } else {
-                                    Toast.makeText(context, "আপনার অ্যাপটি ইতিমধ্যে সর্বশেষ সংস্করণে আছে!", Toast.LENGTH_SHORT).show()
+                        if (!isCheckingUpdate) {
+                            isCheckingUpdate = true
+                            scope.launch(Dispatchers.IO) {
+                                val info = AppUpdateRepository.fetchLatestUpdate()
+                                withContext(Dispatchers.Main) {
+                                    isCheckingUpdate = false
+                                    if (info != null && info.versionCode > BuildConfig.VERSION_CODE) {
+                                        manualUpdateInfo = info
+                                    } else {
+                                        Toast.makeText(context, "আপনার অ্যাপটি ইতিমধ্যে সর্বশেষ সংস্করণে আছে!", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             }
                         }
@@ -490,45 +494,46 @@ fun SettingsScreen(
                 )
             }
 
-            manualUpdateInfo?.let { updateInfo ->
-                UpdateDialog(
-                    updateInfo = updateInfo,
-                    onDismiss = { manualUpdateInfo = null }
-                )
-            }
-
-            // Account & Preferences Section
-            SettingsSection(title = "অ্যাকাউন্ট ও নিরাপত্তা") {
-                // Logout
-                SettingsRowItem(
+            // 6. Account & Security Section
+            SettingsGroupCard(title = "অ্যাকাউন্ট") {
+                CleanSettingsRow(
                     icon = Icons.AutoMirrored.Filled.ExitToApp,
                     iconTint = MaterialTheme.colorScheme.error,
-                    iconBg = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
+                    iconBg = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
                     title = "লগআউট",
-                    subtitle = "অ্যাকাউন্ট থেকে লগআউট করো",
-                    onClick = onLogout,
-                    isDestructive = true
+                    isDestructive = true,
+                    onClick = { showLogoutDialog = true }
                 )
             }
 
-            // App Version Info
+            // Minimalist Brand Footer
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
+                    .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "MaxBird App v6.0.5",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "MaxBird Digital Academy",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Version 6.0.5 • Build ${BuildConfig.VERSION_CODE}",
+                        fontSize = 10.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(100.dp))
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 
+    // Modal: Visual Theme Selector
     if (showThemeDialog) {
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
@@ -542,32 +547,62 @@ fun SettingsScreen(
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     listOf(
-                        Triple("system", "সিস্টেম ডিফল্ট (মোবাইল অনুযায়ী)", "মোবাইলের সিস্টেম থিম সেটিংস অনুযায়ী স্বয়ংক্রিয়ভাবে পরিবর্তিত হবে"),
-                        Triple("light", "লাইট মোড", "উজ্জ্বল ও পরিষ্কার সাদা থিম"),
-                        Triple("dark", "ডার্ক মোড", "চোখের জন্য আরামদায়ক ডার্ক থিম")
-                    ).forEach { (modeKey, modeTitle, modeDesc) ->
+                        Triple("system", "সিস্টেম ডিফল্ট", Icons.Default.BrightnessAuto),
+                        Triple("light", "লাইট মোড", Icons.Default.LightMode),
+                        Triple("dark", "ডার্ক মোড", Icons.Default.DarkMode)
+                    ).forEach { (modeKey, modeTitle, icon) ->
                         val isSelected = currentThemeMode == modeKey
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(14.dp))
                                 .clickable {
                                     sessionManager.setThemeMode(modeKey)
                                     showThemeDialog = false
                                 },
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent,
-                            border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
-                            shape = RoundedCornerShape(12.dp)
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            border = BorderStroke(
+                                if (isSelected) 1.5.dp else 1.dp,
+                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(14.dp)
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                        modifier = Modifier.size(34.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = icon,
+                                                contentDescription = null,
+                                                tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = modeTitle,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.5.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
                                 RadioButton(
                                     selected = isSelected,
                                     onClick = {
@@ -575,20 +610,6 @@ fun SettingsScreen(
                                         showThemeDialog = false
                                     }
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        text = modeTitle,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 14.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = modeDesc,
-                                        fontSize = 11.5.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
                             }
                         }
                     }
@@ -596,51 +617,146 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showThemeDialog = false }) {
-                    Text("ঠিক আছে")
+                    Text("ঠিক আছে", fontWeight = FontWeight.Bold)
                 }
             }
         )
     }
 
+    // Modal: Clear Cache Confirmation
+    if (showClearCacheDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearCacheDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.DeleteSweep,
+                    contentDescription = null,
+                    tint = Color(0xFF0284C7),
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "ক্যাশ মেমোরি খালি করবেন?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.5.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "বর্তমানে $formattedCacheSize অস্থায়ী ক্যাশ মেমোরি জমা রয়েছে। এটি পরিষ্কার করলে আপনার কোনো মূল ডাটা বা ডাউনলোড মুছবে না।",
+                    fontSize = 13.5.sp,
+                    lineHeight = 19.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        isClearingCache = true
+                        AppCacheManager.clearAllAppCache(context)
+                        formattedCacheSize = "0.0 MB"
+                        isClearingCache = false
+                        showClearCacheDialog = false
+                        Toast.makeText(context, "ক্যাশ মেমোরি সম্পূর্ণ পরিষ্কার করা হয়েছে!", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                ) {
+                    Text("খালি করুন", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearCacheDialog = false }) {
+                    Text("বাতিল")
+                }
+            }
+        )
+    }
+
+    // Modal: Logout Confirmation
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "লগআউট করতে চান?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "আপনি কি নিশ্চিত যে আপনার MaxBird অ্যাকাউন্ট থেকে লগআউট করতে চান?",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLogoutDialog = false
+                        onLogout()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("লগআউট", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("বাতিল")
+                }
+            }
+        )
+    }
+
+    // Modal: FCM Terminal
     if (showTerminalDialog) {
         FcmLiveTerminalDialog(
             sessionManager = sessionManager,
             onDismissRequest = { showTerminalDialog = false }
         )
     }
+
+    // Modal: App Update
+    manualUpdateInfo?.let { updateInfo ->
+        UpdateDialog(
+            updateInfo = updateInfo,
+            onDismiss = { manualUpdateInfo = null }
+        )
+    }
 }
 
+/**
+ * Grouped Settings Surface Container
+ */
 @Composable
-private fun SettingsSection(
+private fun SettingsGroupCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(5.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = title,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 0.3.sp
-            )
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 6.dp)
+        )
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
             color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-            shadowElevation = 3.dp
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            shadowElevation = 2.dp
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 content()
@@ -649,14 +765,17 @@ private fun SettingsSection(
     }
 }
 
+/**
+ * Ultra-Clean, Non-Cluttered Settings Row
+ */
 @Composable
-private fun SettingsRowItem(
+private fun CleanSettingsRow(
     icon: ImageVector,
     iconTint: Color,
     iconBg: Color,
     title: String,
-    subtitle: String,
-    badge: String? = null,
+    badgeText: String? = null,
+    badgeColor: Color = MaterialTheme.colorScheme.primary,
     isDestructive: Boolean = false,
     onClick: () -> Unit
 ) {
@@ -664,61 +783,75 @@ private fun SettingsRowItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(iconBg),
-            contentAlignment = Alignment.Center
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.weight(1f, fill = false)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(22.dp)
-            )
-        }
+            Surface(
+                shape = RoundedCornerShape(11.dp),
+                color = iconBg,
+                modifier = Modifier.size(38.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
 
-        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontSize = 15.sp,
+                fontSize = 14.5.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
 
-        if (badge != null) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-                border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-            ) {
-                Text(
-                    text = badge,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
-                )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (badgeText != null) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = badgeColor.copy(alpha = 0.12f),
+                    border = BorderStroke(0.7.dp, badgeColor.copy(alpha = 0.35f))
+                ) {
+                    Text(
+                        text = badgeText,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = badgeColor,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
             }
-        }
 
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-            modifier = Modifier.size(14.dp)
-        )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                modifier = Modifier.size(13.dp)
+            )
+        }
     }
+}
+
+@Composable
+private fun CleanDivider() {
+    HorizontalDivider(
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
+        thickness = 0.8.dp,
+        modifier = Modifier.padding(horizontal = 16.dp)
+    )
 }
