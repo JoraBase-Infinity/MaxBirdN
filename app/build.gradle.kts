@@ -159,7 +159,7 @@ secrets {
   ignoreList.add("SUPABASE_ANON_KEY")
 }
 
-googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.ERROR }
+googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
 
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
@@ -196,7 +196,7 @@ dependencies {
   implementation(libs.coil.compose)
   implementation(libs.coil.svg)
   implementation(libs.converter.moshi)
-  implementation(libs.firebase.ai)
+  // implementation(libs.firebase.ai)
   implementation(libs.firebase.messaging)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
@@ -207,8 +207,8 @@ dependencies {
   // implementation(libs.androidx.credentials)
   // implementation(libs.androidx.credentials.play.services)
   // implementation(libs.googleid)
-  implementation(libs.firebase.appcheck.recaptcha)
-  implementation(libs.firebase.appcheck.debug)
+  // implementation(libs.firebase.appcheck.recaptcha)
+  // implementation(libs.firebase.appcheck.debug)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)
