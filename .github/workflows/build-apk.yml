@@ -86,12 +86,8 @@ jobs:
       - name: Setup Google Services Configuration
         run: |
           mkdir -p app
-          if [ -s "app/google-services.json" ]; then
-            echo "✅ app/google-services.json already present in repository."
-          else
-            echo "ewogICJwcm9qZWN0X2luZm8iOiB7CiAgICAicHJvamVjdF9udW1iZXIiOiAiMTczNjk2MTk4NjM4IiwKICAgICJwcm9qZWN0X2lkIjogInNoaWtoby10ZWNoIiwKICAgICJzdG9yYWdlX2J1Y2tldCI6ICJzaGlraG8tdGVjaC5hcHBzcG90LmNvbSIKICB9LAogICJjbGllbnQiOiBbCiAgICB7CiAgICAgICJjbGllbnRfaW5mbyI6IHsKICAgICAgICAibW9iaWxlc2RrX2FwcF9pZCI6ICIxOjE3MzY5NjE5ODYzODphbmRyb2lkOmE3ZGQxNzJmYzQ0ZDA5MjE2YzUwZmYiLAogICAgICAgICJhbmRyb2lkX2NsaWVudF9pbmZvIjogewogICAgICAgICAgInBhY2thZ2VfbmFtZSI6ICJjb20ubWF4YmlyZC5mZi5hcHAiCiAgICAgICAgfQogICAgICB9LAogICAgICAib2F1dGhfY2xpZW50IjogW10sCiAgICAgICJhcGlfa2V5IjogWwogICAgICAgIHsKICAgICAgICAgICJjdXJyZW50X2tleSI6ICJBSXphU3lBVmptUEF5S1Z0T2F6cGFwLVhyeTgzUEZjOHE1SjFzOE0iCiAgICAgICAgfQogICAgICBdLAogICAgICAic2VydmljZXMiOiB7CiAgICAgICAgImFwcGludml0ZV9zZXJ2aWNlIjogewogICAgICAgICAgIm90aGVyX3BsYXRmb3JtX29hdXRoX2NsaWVudCI6IFtdCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgXSwKICAiY29uZmlndXJhdGlvbl92ZXJzaW9uIjogIjEiCn0K" | base64 -d > app/google-services.json
-            echo "✅ app/google-services.json generated successfully."
-          fi
+          echo "ewogICJwcm9qZWN0X2luZm8iOiB7CiAgICAicHJvamVjdF9udW1iZXIiOiAiMTczNjk2MTk4NjM4IiwKICAgICJwcm9qZWN0X2lkIjogInNoaWtoby10ZWNoIiwKICAgICJzdG9yYWdlX2J1Y2tldCI6ICJzaGlraG8tdGVjaC5hcHBzcG90LmNvbSIKICB9LAogICJjbGllbnQiOiBbCiAgICB7CiAgICAgICJjbGllbnRfaW5mbyI6IHsKICAgICAgICAibW9iaWxlc2RrX2FwcF9pZCI6ICIxOjE3MzY5NjE5ODYzODphbmRyb2lkOmE3ZGQxNzJmYzQ0ZDA5MjE2YzUwZmYiLAogICAgICAgICJhbmRyb2lkX2NsaWVudF9pbmZvIjogewogICAgICAgICAgInBhY2thZ2VfbmFtZSI6ICJjb20ubWF4YmlyZC5mZi5hcHAiCiAgICAgICAgfQogICAgICB9LAogICAgICAib2F1dGhfY2xpZW50IjogW10sCiAgICAgICJhcGlfa2V5IjogWwogICAgICAgIHsKICAgICAgICAgICJjdXJyZW50X2tleSI6ICJBSXphU3lBVmptUEF5S1Z0T2F6cGFwLVhyeTgzUEZjOHE1SjFzOE0iCiAgICAgICAgfQogICAgICBdLAogICAgICAic2VydmljZXMiOiB7CiAgICAgICAgImFwcGludml0ZV9zZXJ2aWNlIjogewogICAgICAgICAgIm90aGVyX3BsYXRmb3JtX29hdXRoX2NsaWVudCI6IFtdCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgXSwKICAiY29uZmlndXJhdGlvbl92ZXJzaW9uIjogIjEiCn0K" | base64 -d > app/google-services.json
+          echo "✅ app/google-services.json generated successfully."
 
       # -----------------------------------------------------------
       # 1. PREPARE ENVIRONMENT & KEYSTORES (MANDATORY BEFORE ANY BUILD)
@@ -125,12 +121,14 @@ jobs:
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "Decoding KEYSTORE_BASE64 from GitHub repository secret..."
             if ! echo "$KEYSTORE_BASE64" | tr -d '\r\n ' | base64 --decode > "$GITHUB_WORKSPACE/my-upload-key.jks"; then
-              echo "⚠️ Failed to decode KEYSTORE_BASE64."
+              echo "❌ Failed to decode KEYSTORE_BASE64."
+              exit 1
             fi
           elif [ -f "$GITHUB_WORKSPACE/keystore_base64.txt" ] && [ ! -s "$GITHUB_WORKSPACE/my-upload-key.jks" ]; then
             echo "Decoding keystore_base64.txt..."
             if ! tr -d '\r\n ' < "$GITHUB_WORKSPACE/keystore_base64.txt" | base64 --decode > "$GITHUB_WORKSPACE/my-upload-key.jks"; then
-              echo "⚠️ Failed to decode keystore_base64.txt."
+              echo "❌ Failed to decode keystore_base64.txt."
+              exit 1
             fi
           fi
 
@@ -153,30 +151,26 @@ jobs:
                 fi
               fi
 
-              if [ -n "$KEY_AL" ]; then
-                echo "--- Release Certificate Fingerprint ---"
-                keytool -list -v -keystore "$GITHUB_WORKSPACE/my-upload-key.jks" -storepass "$STORE_PWD" 2>/dev/null | grep -E "SHA1:|SHA256:" | head -n 2 || true
-                echo "---------------------------------------"
-              else
-                echo "⚠️ KEY_ALIAS could not be detected. Falling back to debug keystore."
-                KEYSTORE_VERIFIED=false
+              if [ -z "$KEY_AL" ]; then
+                echo "❌ KEY_ALIAS is empty and could not be detected."
+                exit 1
               fi
+              echo "--- Release Certificate Fingerprint ---"
+              keytool -list -v -keystore "$GITHUB_WORKSPACE/my-upload-key.jks" -storepass "$STORE_PWD" 2>/dev/null | grep -E "SHA1:|SHA256:" | head -n 2 || true
+              echo "---------------------------------------"
             fi
           fi
 
-          if [ "$KEYSTORE_VERIFIED" = "true" ]; then
-            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/my-upload-key.jks" >> $GITHUB_ENV
-            echo "STORE_PASSWORD=$STORE_PWD" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=${KEY_PWD:-$STORE_PWD}" >> $GITHUB_ENV
-            echo "KEY_ALIAS=$KEY_AL" >> $GITHUB_ENV
-            echo "✅ Release build configured with verified custom keystore."
-          else
-            echo "ℹ️ Using debug keystore fallback for Release APK signing."
-            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/debug.keystore" >> $GITHUB_ENV
-            echo "STORE_PASSWORD=android" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
-            echo "KEY_ALIAS=androiddebugkey" >> $GITHUB_ENV
+          if [ "$KEYSTORE_VERIFIED" != "true" ]; then
+            echo "❌ Keystore integrity check failed with the provided KEYSTORE_BASE64/STORE_PASSWORD."
+            echo "❌ Release signing stopped. The debug keystore will NOT be used for Release."
+            exit 1
           fi
+
+          echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/my-upload-key.jks" >> $GITHUB_ENV
+          echo "STORE_PASSWORD=$STORE_PWD" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=$KEY_PWD" >> $GITHUB_ENV
+          echo "KEY_ALIAS=$KEY_AL" >> $GITHUB_ENV
 
       # -----------------------------------------------------------
       # 2. RELEASE APK
